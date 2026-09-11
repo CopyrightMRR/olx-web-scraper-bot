@@ -113,6 +113,4 @@ Tables are created automatically on first run — no separate migration step nee
 - The Redis host/port (`localhost:6379`) is hardcoded in `handlers/tracking.py` — update it if Redis runs elsewhere.
 - The OLX search request includes a hardcoded `sl` location parameter, which may scope results to a specific area — adjust it if you need different geographic coverage.
 - Redis "seen" sets have no expiration, so they'll grow indefinitely for long-running trackers.
-## 📄 License
- 
-No license has been specified yet. If you plan to share this repo publicly, consider adding a `LICENSE` file so others know how they can use it.
+
