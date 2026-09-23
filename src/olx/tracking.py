@@ -10,7 +10,7 @@ import aiohttp
 
 import asyncio
 from database.repositories.tracker import TrackerRepo
-from handlers.tracker_state import tracker_tasks, redis_client
+from src.olx.tracker_state import tracker_tasks, redis_client
 
 router = Router()
 
@@ -19,22 +19,21 @@ SEEN_TTL_SECOND = 60 * 60 * 24 * 30
 PAGE_LIMIT = 40
 MAX_PAGES_PER_POLL = 5
 BASE_BACKOFF_SECONDS = 30
-MAX_BACKOFF_SECONDS = 60 * 60
 
 
 
 async def check_offer(tracker_id: int, offer_id: str):
     key = f"tracker:{tracker_id}:seen"
-
-    is_new = await redis_client.sadd(key, offer_id) == 1
-
-    await redis_client.expire(key, SEEN_TTL_SECOND)
-    return is_new
+    try:
+        is_new = await redis_client.sadd(key, offer_id) == 1
+        await redis_client.expire(key, SEEN_TTL_SECOND)
+        return is_new
+    except Exception as e:
+        logging.error(f"Problems with Redis. {e}")
 
 
 class Forms(StatesGroup):
     query = State()
-
 
 headers = {
     'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0',
@@ -91,17 +90,21 @@ def format_offer_message(offer: dict) -> str:
 
     return (
         f"<ins>🚨 New Announcement 📜</ins>\n"
-            f"<i>{title}</i>\n\n"
-            f"<b>{status}</b>\n"
-            f"<b>Price: {price_label}</b>\n"
-            f"<b>Location: {city}</b>\n\n"
-            f"{url}"
+        f"<i>{title}</i>\n\n"
+        f"<b>{status}</b>\n"
+        f"<b>Price: {price_label}</b>\n"
+        f"<b>Location: {city}</b>\n"
+        f"{url}"
     )
 
 async def fetch_offer_page(session: aiohttp.ClientSession, query: str, offset: int):
     payload = build_query_payload(query, offset)
-    async with session.post('https://www.olx.ua/apigateway/graphql', json=payload, headers=headers) as response:
-        response = await response.json()
+    try:
+        async with session.post('https://www.olx.ua/apigateway/graphql', json=payload, headers=headers) as response:
+            response = await response.json()
+    except Exception as e:
+        logging.error(f"problem with reading graphql:{e}")
+
 
         return response["data"]["clientCompatibleListings"]["data"] or []
 
@@ -133,7 +136,7 @@ async def tracker_loop(bot: Bot, chat_id: int, query: str, tracker_id: int):
     backoff = BASE_BACKOFF_SECONDS
     async with aiohttp.ClientSession() as session:
         while True:
-            await asyncio.sleep(5)
+            await asyncio.sleep(60)
             try:
                 await pull_once(bot, chat_id, query, tracker_id, session)
                 backoff = BASE_BACKOFF_SECONDS
@@ -156,13 +159,14 @@ async def start_tracker_query(message: Message, state: FSMContext):
     await state.set_state(Forms.query)
 
 @router.message(Forms.query)
-async def making_tracker(message: Message, tracker_repo: TrackerRepo, state: FSMContext):
-    await state.update_data(query=message.text)
+async def making_tracker(message: Message, tracker_repo: TrackerRepo, state: FSMContext, bot: Bot):
     await state.clear()
-    await message.answer('Tracking added. You can see track, touch button "View tracker list"')
-    query = str(message.text)
-    chat_id = message.chat.id
-    await tracker_repo.add_tracker(query, chat_id)
+    await message.answer('Tracking added. You can see track, click button "View tracker list"')
+
+
+    await tracker_repo.add_tracker(str(message.text), message.chat.id)
+    tracker = await tracker_repo.get_trackers_by_chat_id(message.chat.id)
+    await create_task(bot, tracker[-1])
 
 
 async def create_task(bot: Bot, tracker):

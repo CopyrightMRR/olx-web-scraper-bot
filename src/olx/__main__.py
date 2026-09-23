@@ -6,9 +6,9 @@ from os import getenv
 from database import session_maker, engine
 from database.models import BaseModel
 from database.repositories.tracker import TrackerRepo
-from handlers.start import start_router
-from handlers.tracking import router, create_task
-from handlers.tracking_list import list_router
+from src.olx.start import start_router
+from src.olx.tracking import router, create_task
+from src.olx.tracking_list import list_router
 from middlewares import register_middleware
 from dotenv import load_dotenv
 
@@ -43,7 +43,6 @@ async def init_models(e):
 
 async def main():
     try:
-
         await register_middleware(dispatcher, session_maker)
         await init_models(engine)
 
@@ -58,13 +57,11 @@ async def main():
         await dispatcher.start_polling(bot)
 
     except Exception:
-
         logger.exception("Bot didn't started because of any problems")
         raise
 
     finally:
         await bot.session.close()
-
 
 if __name__ == "__main__":
     asyncio.run(main())

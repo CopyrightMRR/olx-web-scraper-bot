@@ -6,8 +6,6 @@ from aiogram.types import Message
 from database.repositories.tracker import TrackerRepo
 
 
-
-
 class DatabaseSessionMiddleware(BaseMiddleware):
     def __init__(self, session_maker) -> None:
         self.session_maker = session_maker

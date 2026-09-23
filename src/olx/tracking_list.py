@@ -2,8 +2,8 @@ from aiogram import Router, F, Bot
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import Message, CallbackQuery
 from database.repositories.tracker import TrackerRepo
-from handlers.tracker_state import tracker_tasks
-from handlers.tracking import create_task
+from src.olx.tracker_state import tracker_tasks
+from src.olx.tracking import create_task
 from keyboards.tracker import tracker_keyboard
 import asyncio
 
@@ -47,7 +47,7 @@ async def tracker_remove(callback: CallbackQuery, tracker_repo: TrackerRepo):
 
 
 @list_router.callback_query(F.data.startswith("status:"))
-async def pick_tracker_status(callback: CallbackQuery, tracker_repo: TrackerRepo, bot: Bot):
+async def change_tracker_status(callback: CallbackQuery, tracker_repo: TrackerRepo, bot: Bot):
     id = int(callback.data.split(":")[1])
     tracker = await tracker_repo.get_tracker_by_id(id)
 

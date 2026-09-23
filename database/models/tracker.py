@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, ForeignKey
+from sqlalchemy import BigInteger
 from sqlalchemy.orm import mapped_column, Mapped
 
 from database.models import BaseModel
